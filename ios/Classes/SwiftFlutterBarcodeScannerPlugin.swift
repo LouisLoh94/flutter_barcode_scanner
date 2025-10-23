@@ -22,6 +22,7 @@ public class SwiftFlutterBarcodeScannerPlugin: NSObject, FlutterPlugin, ScanBarc
     public static var isContinuousScan:Bool=false
     static var barcodeStream:FlutterEventSink?=nil
     public static var scanMode = ScanMode.QR.index
+    public static var cameraPosition: AVCaptureDevice.Position = .back
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         viewController = (UIApplication.shared.delegate?.window??.rootViewController)!
@@ -172,6 +173,7 @@ class BarcodeScannerViewController: UIViewController {
     private var isOrientationPortrait = true
     var screenHeight:CGFloat = 0
     let captureMetadataOutput = AVCaptureMetadataOutput()
+    private var currentCameraPosition: AVCaptureDevice.Position = SwiftFlutterBarcodeScannerPlugin.cameraPosition
     
     private lazy var xCor: CGFloat! = {
         return self.isOrientationPortrait ? (screenSize.width - (screenSize.width*0.8))/2 :
@@ -255,23 +257,32 @@ class BarcodeScannerViewController: UIViewController {
     // Inititlize components
     func initBarcodeComponents(){
         
-        let deviceDiscoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera], mediaType: AVMediaType.video, position: .back)
-        // Get the back-facing camera for capturing videos
-        guard let captureDevice = deviceDiscoverySession.devices.first else {
+        var desiredPosition = currentCameraPosition
+        if desiredPosition == .unspecified {
+            desiredPosition = .back
+        }
+        var resolvedDevice = getCaptureDeviceByPosition(position: desiredPosition)
+        if resolvedDevice == nil {
+            resolvedDevice = getCaptureDeviceByPosition(position: .back)
+        }
+
+        guard let captureDevice = resolvedDevice else {
             print("Failed to get the camera device")
             return
         }
-        
+
         do {
             // Get an instance of the AVCaptureDeviceInput class using the previous device object.
             let input = try AVCaptureDeviceInput(device: captureDevice)
-            
+
             // Set the input device on the capture session.
             if captureSession.inputs.isEmpty {
                 captureSession.addInput(input)
             }
+            currentCameraPosition = captureDevice.position
+            SwiftFlutterBarcodeScannerPlugin.cameraPosition = currentCameraPosition
             // Initialize a AVCaptureMetadataOutput object and set it as the output device to the capture session.
-            
+
             let captureRectWidth = self.isOrientationPortrait ? (screenSize.width*0.8):(screenSize.height*0.8)
             
             captureMetadataOutput.rectOfInterest = CGRect(x: xCor, y: yCor, width: captureRectWidth, height: screenHeight)
@@ -483,6 +494,8 @@ class BarcodeScannerViewController: UIViewController {
             captureSession.addInput(newInput)
             // Disable flash by default
             setFlashStatus(device: device, mode: .off)
+            currentCameraPosition = device.position
+            SwiftFlutterBarcodeScannerPlugin.cameraPosition = device.position
         } catch let error {
             print(error)
             return

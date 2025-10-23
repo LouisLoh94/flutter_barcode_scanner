@@ -74,6 +74,9 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     // constants used to pass extra data in the intent
     public static final String BarcodeObject = "Barcode";
 
+    private static final String KEY_CAMERA_FACING = "camera_facing";
+    private static int persistedCameraFacing = CameraSource.CAMERA_FACING_BACK;
+    private int currentCameraFacing = CameraSource.CAMERA_FACING_BACK;
     private CameraSource mCameraSource;
     private CameraSourcePreview mPreview;
     private GraphicOverlay<BarcodeGraphic> mGraphicOverlay;
@@ -135,11 +138,16 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         boolean autoFocus = true;
         boolean useFlash = false;
 
+        currentCameraFacing = persistedCameraFacing;
+        if (icicle != null) {
+            currentCameraFacing = icicle.getInt(KEY_CAMERA_FACING, currentCameraFacing);
+        }
+
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
             if (rc == PackageManager.PERMISSION_GRANTED) {
-                createCameraSource(autoFocus, useFlash, CameraSource.CAMERA_FACING_BACK);
+                createCameraSource(autoFocus, useFlash, currentCameraFacing);
             } else {
                 requestCameraPermission();
             }
@@ -202,6 +210,9 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
     @SuppressLint("InlinedApi")
     private void createCameraSource(boolean autoFocus, boolean useFlash, int cameraFacing) {
         Context context = getApplicationContext();
+
+        currentCameraFacing = cameraFacing;
+        persistedCameraFacing = cameraFacing;
 
         // A barcode detector is created to track barcodes.  An associated multi-processor instance
         // is set to receive the barcode detection results, track the barcodes, and maintain
@@ -278,6 +289,12 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         }
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(KEY_CAMERA_FACING, currentCameraFacing);
+    }
+
     /**
      * Callback for the result from requesting permissions. This method
      * is invoked for every call on {@link #requestPermissions(String[], int)}.
@@ -307,7 +324,7 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
             // we have permission, so create the camerasource
             boolean autoFocus = true;
             boolean useFlash = false;
-            createCameraSource(autoFocus, useFlash, CameraSource.CAMERA_FACING_BACK);
+            createCameraSource(autoFocus, useFlash, currentCameraFacing);
             return;
         }
 
@@ -418,10 +435,11 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
             FlutterBarcodeScannerPlugin.onBarcodeScanReceiver(barcode);
             finish();
         } else if (i == R.id.imgViewSwitchCamera) {
-            int currentFacing = mCameraSource.getCameraFacing();
-            boolean autoFocus = mCameraSource.getFocusMode() != null;
+            int cameraFacing = mCameraSource != null ? mCameraSource.getCameraFacing() : currentCameraFacing;
+            boolean autoFocus = mCameraSource != null ? mCameraSource.getFocusMode() != null : true;
             boolean useFlash = flashStatus == USE_FLASH.ON.ordinal();
-            createCameraSource(autoFocus, useFlash, getInverseCameraFacing(currentFacing));
+            int nextFacing = getInverseCameraFacing(cameraFacing);
+            createCameraSource(autoFocus, useFlash, nextFacing);
             startCameraSource();
         }
     }
