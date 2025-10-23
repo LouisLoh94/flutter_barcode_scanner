@@ -5,7 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
-    android:keepScreenOn="true">
+    android:keepScreenOn="true"
+    android:fitsSystemWindows="true"
+    >
 
     <com.amolg.flutterbarcodescanner.camera.CameraSourcePreview
         android:id="@+id/preview"
@@ -26,8 +28,7 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_alignParentBottom="true"
-        android:background="@android:color/black"
-        android:paddingBottom="16dp">
+        android:background="@android:color/black">
 
         <ImageView
             android:id="@+id/imgViewSwitchCamera"
